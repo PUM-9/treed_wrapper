@@ -34,20 +34,18 @@ def run_treed_scan(filename, rotation, curve):
     try:
         process = subprocess.Popen(rotation_command, stdout=subprocess.PIPE)
         process.wait(timeout=120)
-        print("Exit code: " + process.returncode)
+        print("Exit code: " + str(process.returncode))
     except:
         print("Error")
 
 def run_filter(filename, rotation, curve):
-    filter_command = ['/home/martin/filter/cmake-build-debug/filter', '-r', str(rotation), '--curve', str(curve), filename]
+    filter_command = ['filter', '-r', str(rotation), '--curve', str(curve), filename]
 
-    try:
-        process = subprocess.Popen(filter_command, stdout=subprocess.PIPE)
-        process.wait()
-        print("Exit code: " + process.returncode)
-    except:
-        print("Error")
-        
+
+    process = subprocess.Popen(filter_command, stdout=subprocess.PIPE)
+    process.wait()
+    print("Exit code: " + str(process.returncode))
+            
 
 if __name__ == '__main__':
     rotation_angle, curve_angle = parse_arguments()
