@@ -39,7 +39,7 @@ def run_treed_scan(filename, rotation, curve):
         print("Error")
 
 def run_filter(filename, rotation, curve):
-    filter_command = ['filter', '-r', str(rotation), '--curve', str(curve), filename]
+    filter_command = ['/home/martin/filter/cmake-build-debug/filter', '-r', str(rotation), '--curve', str(curve), filename]
 
     try:
         process = subprocess.Popen(filter_command, stdout=subprocess.PIPE)
