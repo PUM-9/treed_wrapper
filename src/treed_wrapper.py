@@ -34,16 +34,19 @@ def run_treed_scan(filename, rotation, curve):
     try:
         process = subprocess.Popen(rotation_command, stdout=subprocess.PIPE)
         process.wait(timeout=120)
-        print("Exit code: " + str(process.returncode))
+        print('Exit code: ' + str(process.returncode))
+    #except subprocess.TimeoutExpired:
+    #    print('Error: TreeD timed out')
+    except OSError as e:
+        print(e.strerror)
     except:
-        print("Error")
+        print('Unknown error occured when calling TreeD')
 
 def run_filter(filename, rotation, curve):
     filter_command = ['filter', '-r', str(rotation), '--curve', str(curve), filename]
 
-
     process = subprocess.Popen(filter_command, stdout=subprocess.PIPE)
-    process.wait()
+    #process.wait()
     print("Exit code: " + str(process.returncode))
             
 
