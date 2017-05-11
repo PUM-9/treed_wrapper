@@ -9,26 +9,22 @@ from os.path import join, isfile, getsize
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--rotation_scans', '-r', type=int, help='the number of scans to take in rotation axis')
-    parser.add_argument('--curve_scans', '-c', type=int, help='the number of scans to take in curve axis')
+    parser.add_argument('--curve_angles', '-c', nargs='+', type=int, help='a list of the curve angles to scan the object from, for example: --curve_angles 0 20 40')
     parser.add_argument('--view', '-w', action='store_true', help='open pcl_viewer to show the filtered point clouds when all scans are done')
     parser.add_argument('--cutoff_height', type=int, help='the cutoff height to be used by the filter when removing the stick, default=10')
     args = parser.parse_args()
 
+    rotation_angle = 360
     if args.rotation_scans:
-        rotation_angle = 360 / args.rotation_scans
+        rotation_angle = int(360 / args.rotation_scans)
         if not rotation_angle:
             rotation_angle = 1
-    else:
-        rotation_angle = 360
 
-    if args.curve_scans:
-        curve_angle = 100 / args.curve_scans
-        if not curve_angle:
-            curve_angle = 1
-    else:
-        curve_angle = 100
-
-    return rotation_angle, curve_angle, args.view, args.cutoff_height
+    curve_angles = [0]
+    if args.curve_angles:
+        curve_angles = args.curve_angles
+        
+    return rotation_angle, curve_angles, args.view, args.cutoff_height
 
 def run_command(command, time_out=None):
     try:
@@ -92,17 +88,15 @@ def run_filter(filename, rotation, curve, cutoff=None):
 
 
 if __name__ == '__main__':
-    rotation_angle, curve_angle, show_viewer, cutoff = parse_arguments()
-    
+    rotation_angle, curve_angles, show_viewer, cutoff = parse_arguments()    
     rotations = [int(x) for x in range(360) if x % rotation_angle == 0]
-    curves = [int(x) for x in range(100) if x % curve_angle == 0]
 
     filtered_files = []
 
     # Make sure the scans subdir exists
     makedirs('scans', exist_ok=True)
 
-    for curve in curves:
+    for curve in curve_angles:
         for rotation in rotations:
             # Genereate the file paths for the scan and for the filter
             filename = join('scans/', 'cur%srot%s.pcd' % (str(curve).zfill(2), str(rotation).zfill(3)))
