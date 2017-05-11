@@ -49,7 +49,7 @@ def run_command(command, time_out=None):
         if e.errno == 2 and command[0] == 'filter':
             print('filter executable not found. Make sure it is in the users PATH variable (~/bin for example).')
         else:
-            raise e
+            raise
         return 2, None, None
 
 def run_treed_scan(filename, rotation, curve):
@@ -68,10 +68,16 @@ def run_treed_scan(filename, rotation, curve):
     exit_code, out, err = run_command(scan_command, 120)
 
     # Check if scan failed or saved file is invalid
-    if exit_code or not out or out.decode('ascii') != expected_scan_output or not isfile(filename) or not getsize(filename):
-        return False
-
-    return True
+    if exit_code:
+        raise ValueError('Wrong exit code from call to TreeD', exit_code)
+    elif not out:
+        raise ValueError('No output to stdout from treed')
+    elif out.decode('ascii') != expected_scan_output:
+        raise ValueError('Unexpected output from TreeD', out.decode('ascii'), expected_scan_output)
+    elif not isfile(filename):
+        raise FileNotFoundError('TreeD did not produce an output file', filename)
+    elif not getsize(filename):
+        raise ValueError('TreeD produced an empty output file', filename)
         
 def run_filter(filename, rotation, curve, cutoff=None):
     """
@@ -93,21 +99,31 @@ if __name__ == '__main__':
 
     filtered_files = []
 
+    # Make sure the scans subdir exists
     makedirs('scans', exist_ok=True)
 
     for curve in curves:
         for rotation in rotations:
-            filename = 'cur%srot%s.pcd' % (str(curve).zfill(2), str(rotation).zfill(3))
+            # Genereate the file paths for the scan and for the filter
+            filename = join('scans/', 'cur%srot%s.pcd' % (str(curve).zfill(2), str(rotation).zfill(3)))
             filtered_filename = 'cur%srot%s_filtered.pcd' % (str(curve).zfill(2), str(rotation).zfill(3))
 
             filtered_files += [filtered_filename]
 
+            # Scan if filtered file doesn't exist
             if not isfile(filtered_filename):
-                print("Scanning to " + join('scans', filename))
-                if run_treed_scan(join('scans', filename), rotation, curve):
-                    run_filter(join('scans', filename), rotation, curve, cutoff)
+                print("Scanning to " + filename)
+
+                # Run a scan with TreeD at the rotation and curve
+                # Will raise an exception if TreeD fails, this is not handled intentionally so
+                # the user can see the exception and see what went wrong
+                run_treed_scan(filename, rotation, curve)
+
+                # If TreeD succeeded, run the filter on the scaned cloud
+                run_filter(filename, rotation, curve, cutoff)
+
             else:
-                print("Skipping " + join('scans', filename))
+                print("Skipping " + filename)
 
     if show_viewer:
         viewer_command = ['pcl_viewer'] + filtered_files
