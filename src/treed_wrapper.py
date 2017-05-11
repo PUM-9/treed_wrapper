@@ -3,7 +3,7 @@
 import argparse
 import subprocess as sp
 from os import makedirs
-from os.path import join
+from os.path import join, isfile
 
 
 def parse_arguments():
@@ -79,9 +79,10 @@ if __name__ == '__main__':
             filtered_filename = 'cur%srot%s_filtered.pcd' % (str(curve).zfill(2), str(rotation).zfill(3))
             print(filename, filtered_filename)
             filtered_files += [filtered_filename]
-            
-            if run_treed_scan(join('scan', filename), rotation, curve):
-                run_filter(join('scan', filename), rotation, curve)
+
+            if not isfile(filtered_filename):
+                if run_treed_scan(join('scan', filename), rotation, curve):
+                    run_filter(join('scan', filename), rotation, curve)
 
     if show_viewer:
         viewer_command = ['pcl_viewer'] + filtered_files
