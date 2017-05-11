@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 import argparse
 import subprocess
@@ -26,29 +26,40 @@ def parse_arguments():
 
     return rotation_angle, curve_angle
 
+def run_command(command, time_out=None):
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = process.communicate(timeout=time_out)
+    return process.returncode, out, err
+
 def run_treed_scan(filename, rotation, curve):
     rotation_command = ['treed', 'set', '--table-rotation', str(rotation)]
     curve_command = ['treed', 'set', '--table-curve', str(curve)]
     scan_command = ['treed', 'scan', '-o', filename]
 
-    try:
-        process = subprocess.Popen(rotation_command, stdout=subprocess.PIPE)
-        process.wait(timeout=120)
-        print('Exit code: ' + str(process.returncode))
-    #except subprocess.TimeoutExpired:
-    #    print('Error: TreeD timed out')
-    except OSError as e:
-        print(e.strerror)
-    except:
-        print('Unknown error occured when calling TreeD')
+    expected_scan_output = 'Starting scan\nFile saved to %s\n' % filename
 
+    exit_code, out, err = run_command(rotation_command)
+    print(exit_code, out, err)
+
+    exit_code, out, err = run_command(curve_command)
+    print(exit_code, out, err)
+
+    exit_code, out, err = run_command(scan_command, 120)
+    print(exit_code, out, err)
+
+    if out != expected_scan_output:
+        print("ERROR IN SCAN")
+        return False
+    else:
+        print("NICE")
+        return True
+        
 def run_filter(filename, rotation, curve):
     filter_command = ['filter', '-r', str(rotation), '--curve', str(curve), filename]
+    
+    exit_code, out, err = run_command(filter_command)
+    print(exit_code, out, err)
 
-    process = subprocess.Popen(filter_command, stdout=subprocess.PIPE)
-    #process.wait()
-    print("Exit code: " + str(process.returncode))
-            
 
 if __name__ == '__main__':
     rotation_angle, curve_angle = parse_arguments()
