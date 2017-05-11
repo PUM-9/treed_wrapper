@@ -10,7 +10,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--rotation_scans', '-r', type=int, help='the number of scans to take in rotation axis')
     parser.add_argument('--curve_scans', '-c', type=int, help='the number of scans to take in curve axis')
-    parser.add_argument('--view', '-v', action='store_true', help='open pcl_viewer to show the filtered point clouds when all scans are done')
+    parser.add_argument('--view', '-w', action='store_true', help='open pcl_viewer to show the filtered point clouds when all scans are done')
     args = parser.parse_args()
 
     if args.rotation_scans:
@@ -30,11 +30,28 @@ def parse_arguments():
     return rotation_angle, curve_angle, args.view
 
 def run_command(command, time_out=None):
-    process = sp.Popen(command, stdout=sp.PIPE, stderr=sp.PIPE)
-    out, err = process.communicate(timeout=time_out)
-    return process.returncode, out, err
+    try:
+        process = sp.Popen(command, stdout=sp.PIPE, stderr=sp.PIPE)
+        out, err = process.communicate(timeout=time_out)
+        return process.returncode, out, err
+
+    except sp.TimeoutExpired as e:
+        process.kill()
+
+        print('Command: ' + ' '.join(e.cmd))
+        print('timed out in ' + str(e.timeout) + ' seconds')
+        if e.cmd and e.cmd[0] == 'treed':
+            print('Restart the hardware and then re-run the treed_wrapper with the same arguments.')
+        return 1, None, None
+
+    #except OSError as e:
+        
 
 def run_treed_scan(filename, rotation, curve):
+    """
+    Runs a scan using TreeD with the specified rotation and curve.
+    Returns True if the scan was successful and False otherwise.
+    """
     rotation_command = ['treed', 'set', '--table-rotation', str(rotation)]
     curve_command = ['treed', 'set', '--table-curve', str(curve)]
     scan_command = ['treed', 'scan', '-o', filename]
@@ -42,21 +59,23 @@ def run_treed_scan(filename, rotation, curve):
     expected_scan_output = 'Starting scan\nFile saved to %s\n' % filename
 
     exit_code, out, err = run_command(rotation_command)
-    print(exit_code, out, err)
-
     exit_code, out, err = run_command(curve_command)
-    print(exit_code, out, err)
 
     exit_code, out, err = run_command(scan_command, 120)
     print(exit_code, out, err)
 
-    if out.decode('ascii') != expected_scan_output:
-        print("ERROR IN SCAN")
+    # Check if scan failed
+    if exit_code or not out or out.decode('ascii') != expected_scan_output:
         return False
-    else:
-        return True
+
+    return True
         
 def run_filter(filename, rotation, curve):
+    """
+    Runs the filter on the point cloud in filename. Assumes that the filter is on
+    the users path. Applies rotation and curve on the filtered point cloud to
+    roughly align it.
+    """
     filter_command = ['filter', '-r', str(rotation), '-c', str(curve), filename]
     
     exit_code, out, err = run_command(filter_command)
@@ -77,10 +96,11 @@ if __name__ == '__main__':
         for rotation in rotations:
             filename = 'cur%srot%s.pcd' % (str(curve).zfill(2), str(rotation).zfill(3))
             filtered_filename = 'cur%srot%s_filtered.pcd' % (str(curve).zfill(2), str(rotation).zfill(3))
-            print(filename, filtered_filename)
+
             filtered_files += [filtered_filename]
 
             if not isfile(filtered_filename):
+                print("Scanning to " + filename)
                 if run_treed_scan(join('scan', filename), rotation, curve):
                     run_filter(join('scan', filename), rotation, curve)
 
