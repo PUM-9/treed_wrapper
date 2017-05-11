@@ -1,13 +1,16 @@
 #!/usr/bin/python3
 
 import argparse
-import subprocess
+import subprocess as sp
+from os import makedirs
+from os.path import join
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--rotation_scans', '-r', type=int, help='the number of scans to take in rotation axis')
     parser.add_argument('--curve_scans', '-c', type=int, help='the number of scans to take in curve axis')
+    parser.add_argument('--view', '-v', action='store_true', help='open pcl_viewer to show the filtered point clouds when all scans are done')
     args = parser.parse_args()
 
     if args.rotation_scans:
@@ -24,10 +27,10 @@ def parse_arguments():
     else:
         curve_angle = 100
 
-    return rotation_angle, curve_angle
+    return rotation_angle, curve_angle, args.view
 
 def run_command(command, time_out=None):
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = sp.Popen(command, stdout=sp.PIPE, stderr=sp.PIPE)
     out, err = process.communicate(timeout=time_out)
     return process.returncode, out, err
 
@@ -47,31 +50,39 @@ def run_treed_scan(filename, rotation, curve):
     exit_code, out, err = run_command(scan_command, 120)
     print(exit_code, out, err)
 
-    if out != expected_scan_output:
+    if out.decode('ascii') != expected_scan_output:
         print("ERROR IN SCAN")
         return False
     else:
-        print("NICE")
         return True
         
 def run_filter(filename, rotation, curve):
-    filter_command = ['filter', '-r', str(rotation), '--curve', str(curve), filename]
+    filter_command = ['filter', '-r', str(rotation), '-c', str(curve), filename]
     
     exit_code, out, err = run_command(filter_command)
     print(exit_code, out, err)
 
 
 if __name__ == '__main__':
-    rotation_angle, curve_angle = parse_arguments()
+    rotation_angle, curve_angle, show_viewer = parse_arguments()
     
     rotations = [int(x) for x in range(360) if x % rotation_angle == 0]
     curves = [int(x) for x in range(100) if x % curve_angle == 0]
+
+    filtered_files = []
+
+    makedirs('scan', exist_ok=True)
 
     for curve in curves:
         for rotation in rotations:
             filename = 'cur%srot%s.pcd' % (str(curve).zfill(2), str(rotation).zfill(3))
             filtered_filename = 'cur%srot%s_filtered.pcd' % (str(curve).zfill(2), str(rotation).zfill(3))
             print(filename, filtered_filename)
+            filtered_files += [filtered_filename]
             
-            run_treed_scan(filename, rotation, curve)
-            run_filter(filename, rotation, curve)
+            if run_treed_scan(join('scan', filename), rotation, curve):
+                run_filter(join('scan', filename), rotation, curve)
+
+    if show_viewer:
+        viewer_command = ['pcl_viewer'] + filtered_files
+        run_command(viewer_command)
