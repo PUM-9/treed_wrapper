@@ -68,7 +68,7 @@ def run_treed_scan(filename, rotation, curve):
     exit_code, out, err = run_command(scan_command, 120)
 
     # Check if scan failed or saved file is invalid
-    if exit_code or not out or out.decode('ascii') != expected_scan_output or not getsize(filename):
+    if exit_code or not out or out.decode('ascii') != expected_scan_output or not isfile(filename) or not getsize(filename):
         return False
 
     return True
@@ -103,9 +103,11 @@ if __name__ == '__main__':
             filtered_files += [filtered_filename]
 
             if not isfile(filtered_filename):
-                print("Scanning to " + filename)
-                if run_treed_scan(join('scan', filename), rotation, curve):
-                    run_filter(join('scan', filename), rotation, curve, cutoff)
+                print("Scanning to " + join('scans', filename))
+                if run_treed_scan(join('scans', filename), rotation, curve):
+                    run_filter(join('scans', filename), rotation, curve, cutoff)
+            else:
+                print("Skipping " + join('scans', filename))
 
     if show_viewer:
         viewer_command = ['pcl_viewer'] + filtered_files
