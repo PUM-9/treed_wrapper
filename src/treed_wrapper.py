@@ -3,7 +3,7 @@
 import argparse
 import subprocess as sp
 from os import makedirs
-from os.path import join, isfile
+from os.path import join, isfile, getsize
 
 
 def parse_arguments():
@@ -11,6 +11,7 @@ def parse_arguments():
     parser.add_argument('--rotation_scans', '-r', type=int, help='the number of scans to take in rotation axis')
     parser.add_argument('--curve_scans', '-c', type=int, help='the number of scans to take in curve axis')
     parser.add_argument('--view', '-w', action='store_true', help='open pcl_viewer to show the filtered point clouds when all scans are done')
+    parser.add_argument('--cutoff_height', type=int, help='the cutoff height to be used by the filter when removing the stick, default=10')
     args = parser.parse_args()
 
     if args.rotation_scans:
@@ -27,7 +28,7 @@ def parse_arguments():
     else:
         curve_angle = 100
 
-    return rotation_angle, curve_angle, args.view
+    return rotation_angle, curve_angle, args.view, args.cutoff_height
 
 def run_command(command, time_out=None):
     try:
@@ -44,8 +45,12 @@ def run_command(command, time_out=None):
             print('Restart the hardware and then re-run the treed_wrapper with the same arguments.')
         return 1, None, None
 
-    #except OSError as e:
-        
+    except OSError as e:
+        if e.errno == 2 and command[0] == 'filter':
+            print('filter executable not found. Make sure it is in the users PATH variable (~/bin for example).')
+        else:
+            raise e
+        return 2, None, None
 
 def run_treed_scan(filename, rotation, curve):
     """
@@ -58,39 +63,37 @@ def run_treed_scan(filename, rotation, curve):
 
     expected_scan_output = 'Starting scan\nFile saved to %s\n' % filename
 
-    exit_code, out, err = run_command(rotation_command)
-    exit_code, out, err = run_command(curve_command)
-
+    run_command(rotation_command)
+    run_command(curve_command)
     exit_code, out, err = run_command(scan_command, 120)
-    print(exit_code, out, err)
 
-    # Check if scan failed
-    if exit_code or not out or out.decode('ascii') != expected_scan_output:
+    # Check if scan failed or saved file is invalid
+    if exit_code or not out or out.decode('ascii') != expected_scan_output or not getsize(filename):
         return False
 
     return True
         
-def run_filter(filename, rotation, curve):
+def run_filter(filename, rotation, curve, cutoff=None):
     """
     Runs the filter on the point cloud in filename. Assumes that the filter is on
     the users path. Applies rotation and curve on the filtered point cloud to
     roughly align it.
     """
     filter_command = ['filter', '-r', str(rotation), '-c', str(curve), filename]
-    
+    if cutoff:
+        filter_command += ['--cutoff_height', str(cutoff)]
     exit_code, out, err = run_command(filter_command)
-    print(exit_code, out, err)
 
 
 if __name__ == '__main__':
-    rotation_angle, curve_angle, show_viewer = parse_arguments()
+    rotation_angle, curve_angle, show_viewer, cutoff = parse_arguments()
     
     rotations = [int(x) for x in range(360) if x % rotation_angle == 0]
     curves = [int(x) for x in range(100) if x % curve_angle == 0]
 
     filtered_files = []
 
-    makedirs('scan', exist_ok=True)
+    makedirs('scans', exist_ok=True)
 
     for curve in curves:
         for rotation in rotations:
@@ -102,7 +105,7 @@ if __name__ == '__main__':
             if not isfile(filtered_filename):
                 print("Scanning to " + filename)
                 if run_treed_scan(join('scan', filename), rotation, curve):
-                    run_filter(join('scan', filename), rotation, curve)
+                    run_filter(join('scan', filename), rotation, curve, cutoff)
 
     if show_viewer:
         viewer_command = ['pcl_viewer'] + filtered_files
