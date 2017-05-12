@@ -7,12 +7,12 @@ from os.path import join, isfile, getsize
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--rotation_scans', '-r', type=int, help='the number of scans to take in rotation axis')
-    parser.add_argument('--curve_angles', '-c', nargs='+', type=int, help='a list of the curve angles to scan the object from, for example: --curve_angles 0 20 40')
-    parser.add_argument('--view', '-w', action='store_true', help='open pcl_viewer to show the filtered point clouds when all scans are done')
+    parser = argparse.ArgumentParser(description='performs multiple scans using TreeD and processes the scans to filter out junk data and place them at the coordinate systems origin')
+    parser.add_argument('-r', '--rotation_scans', type=int, help='the number of scans to take in rotation axis')
+    parser.add_argument('-c', '--curve_angles', nargs='+', type=int, help='a list of the curve angles to scan the object from, for example: --curve_angles 0 20 40')
+    parser.add_argument('-w', '--view', action='store_true', help='open pcl_viewer to show the filtered point clouds when all scans are done')
     parser.add_argument('--cutoff_height', type=int, help='the cutoff height to be used by the filter when removing the stick, default=10')
-    parser.add_argument('--filter_only', '-f', action='store_true', help='only filter the specified point clouds and don\'t make new scans')
+    parser.add_argument('-f', '--filter_only', action='store_true', help='only filter the specified point clouds and don\'t make new scans')
     args = parser.parse_args()
 
     rotation_angle = 360
