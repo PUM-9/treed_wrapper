@@ -12,6 +12,7 @@ def parse_arguments():
     parser.add_argument('--curve_angles', '-c', nargs='+', type=int, help='a list of the curve angles to scan the object from, for example: --curve_angles 0 20 40')
     parser.add_argument('--view', '-w', action='store_true', help='open pcl_viewer to show the filtered point clouds when all scans are done')
     parser.add_argument('--cutoff_height', type=int, help='the cutoff height to be used by the filter when removing the stick, default=10')
+    parser.add_argument('--filter_only', '-f', action='store_true', help='only filter the specified point clouds and don\'t make new scans')
     args = parser.parse_args()
 
     rotation_angle = 360
@@ -24,7 +25,7 @@ def parse_arguments():
     if args.curve_angles:
         curve_angles = args.curve_angles
         
-    return rotation_angle, curve_angles, args.view, args.cutoff_height
+    return rotation_angle, curve_angles, args.view, args.cutoff_height, args.filter_only
 
 def run_command(command, time_out=None):
     try:
@@ -88,7 +89,7 @@ def run_filter(filename, rotation, curve, cutoff=None):
 
 
 if __name__ == '__main__':
-    rotation_angle, curve_angles, show_viewer, cutoff = parse_arguments()    
+    rotation_angle, curve_angles, show_viewer, cutoff, filter_only = parse_arguments()    
     rotations = [int(x) for x in range(360) if x % rotation_angle == 0]
 
     filtered_files = []
@@ -104,14 +105,19 @@ if __name__ == '__main__':
 
             filtered_files += [filtered_filename]
 
-            # Scan if filtered file doesn't exist
-            if not isfile(filtered_filename):
+
+            if filter_only:
+                print("Filtering " + filename)
+                run_filter(filename, rotation, curve, cutoff)
+
+            elif not isfile(filtered_filename):
+                # Scan if filtered file doesn't exist
                 print("Scanning to " + filename)
 
                 # Run a scan with TreeD at the rotation and curve
                 # Will raise an exception if TreeD fails, this is not handled intentionally so
                 # the user can see the exception and see what went wrong
-                run_treed_scan(filename, rotation, curve)
+                #run_treed_scan(filename, rotation, curve)
 
                 # If TreeD succeeded, run the filter on the scaned cloud
                 run_filter(filename, rotation, curve, cutoff)
