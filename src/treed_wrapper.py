@@ -117,7 +117,7 @@ if __name__ == '__main__':
                 # Run a scan with TreeD at the rotation and curve
                 # Will raise an exception if TreeD fails, this is not handled intentionally so
                 # the user can see the exception and see what went wrong
-                #run_treed_scan(filename, rotation, curve)
+                run_treed_scan(filename, rotation, curve)
 
                 # If TreeD succeeded, run the filter on the scaned cloud
                 run_filter(filename, rotation, curve, cutoff)
